@@ -1,1 +1,4 @@
 !*.py
+__pycache__
+runs
+weights
