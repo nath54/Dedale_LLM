@@ -3,6 +3,7 @@ from model import MixtofExp
 
 if __name__ == "__main__":
     model = MixtofExp()
+    model.load_weights()
 
     t1 = "3 4 5 6 "
 

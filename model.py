@@ -6,9 +6,16 @@ import torch
 import torch.nn as nn
 import os
 
+PASSAGE_STOP = -1
+PASSAGE_CONTINUE_WITH_ROUTEUR = -2
 
 class MixtofExp(nn.Module):
-    def __init__(self, max_length=50) -> None:
+    def __init__(
+        self,
+        max_length: int = 50,
+        max_routeur_passages: int = 8,
+        force_passage: list[int] = []
+    ) -> None:
         """
         The `__init__` function initializes the attributes of the `MixtofExp`
         class, including the embedding layer, routing layer,
@@ -26,11 +33,45 @@ class MixtofExp(nn.Module):
         self.routeur: Routeur = Routeur()
         self.next_token_prediction: NextTokenPrediction = NextTokenPrediction()
         #
-        self.max_routeur_passages: int = 8
+        self.max_routeur_passages: int = max_routeur_passages
+        self.force_passage: list[int] = force_passage
 
         self.max_blocks: int = MAX_LOADED_BLOCKS
         self.nb_blocks_to_remove: int = BLOCKS_TO_REMOVE
         self.blocks: dict = {}
+        #
+        self.max_length = max_length
+
+    def forward_block(self, X: torch.Tensor, block_id: int) -> torch.Tensor:
+        if block_id not in self.blocks:
+            self.load_block(block_id)
+        #
+        self.blocks[block_id]["usage"] += 1
+        printd("Model, line 63, Passing by block ", block_id)
+        #
+        printd("Model, line 65, X : ", X.shape, type(X), X.type())
+        X.type(torch.float)
+        X = self.blocks[block_id]["model"].forward(X)
+        X.type(torch.float)
+        return X
+
+    def forward_routeur_passage(
+        self,
+        X: torch.Tensor,
+        routeur_passages: int = 1
+    ) -> torch.Tensor:
+        block_id_t: torch.Tensor = self.routeur(X)
+        block_id: int = block_id_t.item()
+        printd("Model, line 54, block_id : ", block_id, type(block_id))
+        while block_id != 0 or routeur_passages < self.max_routeur_passages:
+            routeur_passages += 1
+            #
+            X = self.forward_block(X, block_id)
+            #
+            block_id_t: torch.Tensor = self.routeur(X)
+            block_id: int = block_id_t.item()
+        #
+        return X
 
     def forward(self, X: torch.Tensor):
         """
@@ -49,25 +90,21 @@ class MixtofExp(nn.Module):
         printd("Model, line 49, X: ", X.shape, type(X), X.type())
         X.type(torch.float)
         #
-        block_id_t: torch.Tensor = self.routeur(X)
-        block_id: int = block_id_t.item()
-        printd("Model, line 54, block_id : ", block_id, type(block_id))
         routeur_passages: int = 1
-        while block_id != 0 or routeur_passages < self.max_routeur_passages:
-            routeur_passages += 1
-            #
-            if block_id not in self.blocks:
-                self.load_block(block_id)
-            #
-            self.blocks[block_id]["usage"] += 1
-            printd("Model, line 63, Passing by block ", block_id)
-            #
-            printd("Model, line 65, X : ", X.shape, type(X), X.type())
-            X.type(torch.float)
-            X = self.blocks[block_id]["model"].forward(X)
-            X.type(torch.float)
-            block_id_t: torch.Tensor = self.routeur(X)
-            block_id: int = block_id_t.item()
+        #
+        if self.force_passage != []:
+            for block_id in self.force_passage:
+                if block_id == PASSAGE_STOP:
+                    break
+                elif block_id == PASSAGE_CONTINUE_WITH_ROUTEUR:
+                    self.forward_routeur_passage(X, routeur_passages)
+                    break
+                #
+                routeur_passages += 1
+                #
+                X = self.forward_block(X, block_id)
+        else:
+            self.forward_routeur_passage(X)
         #
         tk = self.next_token_prediction(X)
         printd("Model, line 73, tk : ", tk, tk.shape, type(tk), tk.type())
@@ -129,6 +166,9 @@ class MixtofExp(nn.Module):
         :type filename: str (optional)
         """
         torch.save(self.state_dict(), filename)
+        #
+        for id_block in self.blocks:
+            self.save_block(id_block)
 
     def load_block(self, block_id: int) -> None:
         """

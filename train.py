@@ -14,11 +14,17 @@ from tqdm import tqdm
 
 from lib import device, tokenizer, CONTEXT_LENGTH
 
+TRAINING_SIZE = 100
+
 
 class Data:
     def __init__(self):
         self.paragraphs: list[str] = []
         self.paragraphs_tks: list[Tensor] = []
+        # self.end_token: Tensor = tokenizer.encode(tokenizer.eos_token,
+        #                                           return_tensors="pt")
+        # print("End token : ", self.end_token) -> tensor([[11]])
+        self.end_token: Tensor = Tensor([11])[0].to(int)
         #
         self.genere_data()
         #
@@ -31,7 +37,7 @@ class Data:
         to the first element of the "paragraphs" list.
         """
         self.paragraphs.append("")
-        for x in range(1000):
+        for x in range(TRAINING_SIZE):
             self.paragraphs[0] += str(x) + " "
 
         #
@@ -67,19 +73,15 @@ class Data:
             #
             c = 0
             for k in range(a, b):
-                # print("DEBUG X : ", X, X.size())
-                # print("DEBUG X[c] : ", X[c], X[c].size())
-                # print("DEBUG self.paragraphs_tks[self.p][0, k] : ",
-                #       self.paragraphs_tks[self.p][0, k],
-                #       self.paragraphs_tks[self.p][0, k].size())
                 X[c] = self.paragraphs_tks[self.p][0, k]
                 c += 1
             while c < context_length:
                 X[c] = 0  # tokenizer.eos_token
                 c += 1
             #
-            if (self.i+1 >= len(self.paragraphs[self.p])):
-                Y = tokenizer.eos_token
+            if (self.i+1 >= len(self.paragraphs_tks[self.p][0]) - 1):
+                # Y = tokenizer.eos_token
+                Y = self.end_token
                 self.i = 0
                 self.p = (self.p + 1) % len(self.paragraphs)
             else:
@@ -104,8 +106,8 @@ class Data:
                     c += 1
                 #
                 X[j] = t
-                if (self.i+1 >= len(self.paragraphs[self.p])):
-                    Y[j] = tokenizer.eos_token
+                if (self.i+1 >= len(self.paragraphs_tks[self.p][0])):
+                    Y[j] = self.end_token
                     self.i = 0
                     self.p = (self.p + 1) % len(self.paragraphs)
                 else:
@@ -120,7 +122,7 @@ def train(model, epochs):
     batch_size = 1
     #
     data: Data = Data()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.Adam(model.parameters(), lr=0.0001)
     loss_fn = nn.CrossEntropyLoss().to(device)
     #
     print("Preparing the model to train...")
@@ -135,8 +137,7 @@ def train(model, epochs):
 
         print("epoch : ", epoch)
 
-        training_size = len(data.paragraphs_tks[0])
-        training_size = 1000
+        training_size = TRAINING_SIZE
         loop = tqdm(range(training_size), leave=False, total=training_size)
 
         for i in loop:
@@ -150,8 +151,6 @@ def train(model, epochs):
 
             output = model(X).to(device)
 
-            # print("Y : ", Y, Y.type(), ", output : ", output, output.type(),
-            #       output.shape)
             loss = loss_fn(output, Y)
             loss.backward()
             losses_epoch.append(loss.item())
@@ -164,8 +163,4 @@ def train(model, epochs):
 
         tb.add_scalar("Loss", sum(losses_epoch)/len(losses_epoch), epoch)
 
-        # for name, weight in model.classifier.named_parameters():
-        #     tb.add_histogram(name,weight, epoch)
-        #     tb.add_histogram(f'{name}.grad',weight.grad, epoch)
-
-        model.save_weights("weights/weights.pt")
+        model.save_weights()
