@@ -143,7 +143,7 @@ class MixtofExp(nn.Module):
         tk = tokenizer.convert_ids_to_tokens(idx)
         return tk
 
-    def load_weights(self, filename: str = "weights/moe.pt") -> None:
+    def load_weights(self) -> None:
         """
         The function loads weights from a file and sets the model
         to evaluation mode.
@@ -155,6 +155,9 @@ class MixtofExp(nn.Module):
         to weights/moe.pt
         :type filename: str (optional)
         """
+        #
+        filename = f"weights/{self.model_name}/moe.pt"
+        #
         if os.path.exists(filename):
             self.load_state_dict(torch.load(filename))
             self.eval()

@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 from lib import device, tokenizer, CONTEXT_LENGTH
 
-TRAINING_SIZE = 100
+TRAINING_SIZE = 1000
 
 
 class Data:

@@ -47,43 +47,50 @@ class SingleCharactersTokenizer(AutoTokenizer):
     """
     def encode(
             self,
-            text_to_encode: str,
+            input_: str,
             max_length: int = -1,
             padding: str = "none",
             truncation: bool = False,
             return_tensors: str = "lst"
     ):
         # Verifying the arguments types
-        assert isinstance(text_to_encode, str), \
-               "Function Error : The argument text_to_encode must be text !"
+        assert isinstance(input_, str) or isinstance(input_, list[str]), \
+               "Function Error: input_ must be str or list of str!"
         assert (max_length == -1 or max_length >= 0), \
-               "Function Error : `max_length` must be equals to -1 or >= 0"
+               "Function Error: `max_length` must be equals to -1 or >= 0"
         assert padding in ["none", "max_length"], \
-               "Function Error : `padding` must be one of [none, max_length]"
+               "Function Error: `padding` must be one of [none, max_length]"
         assert return_tensors in ["lst", "pt", "np"], \
-               "Function Error : `return_tensors` must be one of [lst, pt, np]"
+               "Function Error: `return_tensors` must be one of [lst, pt, np]"
+
+        if isinstance(input_, str):
+            input_ = [input_]
 
         # Initialising the array of tokens
         tokens: list[int] = []
 
-        # For each character of the text, assigning it to its token
-        for i in range(len(text_to_encode)):
-            if text_to_encode[i] in CHARACTERS_TOKENS:
-                # The + 1 shift is because the EOS_TOKEN is 0, so the token 0
-                # is already took.
-                tk: int = 1 + CHARACTERS_TOKENS.index(text_to_encode[i])
-                tokens.append(tk)
-            else:
-                tokens.append(DEFAULT_TOKEN)
+        # For each text in input_, tokenize it
+        for j in range(len(input_)):
+            tokens.append([])
+            # For each character of the text, assigning it to its token
+            for i in range(len(input_[j])):
+                if input_[j][i] in CHARACTERS_TOKENS:
+                    # The + 1 shift is because the EOS_TOKEN is 0, so token 0
+                    # is already took.
+                    tk: int = 1 + CHARACTERS_TOKENS.index(input_[j][i])
+                    tokens[j].append(tk)
+                else:
+                    tokens[j].append(DEFAULT_TOKEN)
 
         # Padding
         if padding == "max_length" and max_length >= 0:
-            while len(tokens) < max_length:
-                tokens.append(DEFAULT_TOKEN)
+            for j in range(len(tokens)):
+                while len(tokens[j]) < max_length:
+                    tokens[j].append(DEFAULT_TOKEN)
 
         # Return the array of tokens
         if return_tensors == "pt":
-            return Tensor(tokens).to(torch.int)
+            return Tensor(tokens).to(torch.long)
         elif return_tensors == "np":
             return np.array(tokens, dtype=int)
         return tokens
@@ -110,6 +117,6 @@ class SingleCharactersTokenizer(AutoTokenizer):
         for tk in tokens_id_lst:
             assert tk <= CHARACTERS_TOKENS_VOCAB_SIZE, "Error, bad token"
             #
-            string_result += CHARACTERS_TOKENS[tk]
+            string_result += CHARACTERS_TOKENS[tk - 1]
         #
         return string_result
