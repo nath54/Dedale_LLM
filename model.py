@@ -1,6 +1,6 @@
 from lib import Embedding, Routeur, NextTokenPrediction, Block
 from lib import MAX_LOADED_BLOCKS, CONTEXT_LENGTH, BLOCKS_TO_REMOVE
-from lib import printd, tokenizer
+from lib import printd, tokenizer, lineno
 
 import torch
 import torch.nn as nn
@@ -9,12 +9,14 @@ import os
 PASSAGE_STOP = -1
 PASSAGE_CONTINUE_WITH_ROUTEUR = -2
 
+
 class MixtofExp(nn.Module):
     def __init__(
         self,
         max_length: int = 50,
         max_routeur_passages: int = 8,
-        force_passage: list[int] = []
+        force_passage: list[int] = [],
+        model_name: str = "moe"
     ) -> None:
         """
         The `__init__` function initializes the attributes of the `MixtofExp`
@@ -41,15 +43,17 @@ class MixtofExp(nn.Module):
         self.blocks: dict = {}
         #
         self.max_length = max_length
+        #
+        self.model_name = model_name
 
     def forward_block(self, X: torch.Tensor, block_id: int) -> torch.Tensor:
         if block_id not in self.blocks:
             self.load_block(block_id)
         #
         self.blocks[block_id]["usage"] += 1
-        printd("Model, line 63, Passing by block ", block_id)
+        printd(f"Model, l{lineno()}, Passing by block ", block_id)
         #
-        printd("Model, line 65, X : ", X.shape, type(X), X.type())
+        printd(f"Model, l{lineno()}, X : ", X.shape, type(X), X.type())
         X.type(torch.float)
         X = self.blocks[block_id]["model"].forward(X)
         X.type(torch.float)
@@ -62,7 +66,7 @@ class MixtofExp(nn.Module):
     ) -> torch.Tensor:
         block_id_t: torch.Tensor = self.routeur(X)
         block_id: int = block_id_t.item()
-        printd("Model, line 54, block_id : ", block_id, type(block_id))
+        printd(f"Model, l{lineno()}, block_id : ", block_id, type(block_id))
         while block_id != 0 or routeur_passages < self.max_routeur_passages:
             routeur_passages += 1
             #
@@ -87,7 +91,7 @@ class MixtofExp(nn.Module):
         """
         #
         X = self.embedding(X)
-        printd("Model, line 49, X: ", X.shape, type(X), X.type())
+        printd(f"Model, l{lineno()}, X: ", X.shape, type(X), X.type())
         X.type(torch.float)
         #
         routeur_passages: int = 1
@@ -107,7 +111,7 @@ class MixtofExp(nn.Module):
             self.forward_routeur_passage(X)
         #
         tk = self.next_token_prediction(X)
-        printd("Model, line 73, tk : ", tk, tk.shape, type(tk), tk.type())
+        printd(f"Model, l{lineno()}, tk: ", tk, tk.shape, type(tk), tk.type())
         return tk
 
     def forward_txt(self, txt: str):
@@ -116,7 +120,8 @@ class MixtofExp(nn.Module):
                                            padding="max_length",
                                            truncation=True,
                                            return_tensors="pt")
-        printd("Model->forward_txt, line 82 : ", X.shape, type(X))
+        printd(f"Model->forward_txt, l{lineno()}, X: ", X.shape, type(X))
+        printd(X)
         #
         return self.forward(X)
 
@@ -154,17 +159,16 @@ class MixtofExp(nn.Module):
             self.load_state_dict(torch.load(filename))
             self.eval()
 
-    def save_weights(self, filename: str = "weights/moe.pt") -> None:
+    def save_weights(self) -> None:
         """
-        The function saves the weights of a model to a specified file.
-
-        :param filename: The `filename` parameter is a string that specifies
-        the name and path of the file where the weights will be saved.
-        By default, it is set to "weights/moe.pt", which means the
-        weights will be saved in a file named "moe.pt"
-        in the "weights" directory, defaults to weights/moe.pt
-        :type filename: str (optional)
+        This function saves the weights of a model.
         """
+        #
+        if not os.path.exists(f"weights/{self.model_name}/"):
+            os.mkdir(f"weights/{self.model_name}/")
+        #
+        filename = f"weights/{self.model_name}/moe.pt"
+        #
         torch.save(self.state_dict(), filename)
         #
         for id_block in self.blocks:
@@ -196,9 +200,11 @@ class MixtofExp(nn.Module):
                 else:
                     break
         #
-        if os.path.exists(f"weights/block_{block_id}.pt"):
+        if os.path.exists(f"weights/{self.model_name}/block_{block_id}.pt"):
             block = Block()
-            block.load_state_dict(torch.load(f"weights/block_{block_id}.pt"))
+            block.load_state_dict(
+                torch.load(f"weights/{self.model_name}/block_{block_id}.pt")
+            )
             block.eval()
             #
             self.blocks[block_id] = {
@@ -223,9 +229,13 @@ class MixtofExp(nn.Module):
         a block
         :type block_id: int
         """
+        #
+        if not os.path.exists(f"weights/{self.model_name}/"):
+            os.mkdir(f"weights/{self.model_name}/")
+        #
         if block_id in self.blocks:
             torch.save(self.blocks[block_id]["model"].state_dict(),
-                       f"weights/block_{block_id}.pt")
+                       f"weights/{self.model_name}/block_{block_id}.pt")
 
     def unload_block(self, block_id: int) -> None:
         """
