@@ -9,10 +9,10 @@ if __name__ == "__main__":
     )
     model.load_weights()
 
-    t1 = "1 2 3 4 5 6 7"
+    t1 = "1 2 3 4 5 6 7 8"
 
     c = 0
-    mc = 20
+    mc = 5
     out = None
     while c < mc and out != tokenizer.eos_token:
         c += 1

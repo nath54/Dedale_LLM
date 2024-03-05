@@ -5,16 +5,10 @@ from custom_tokenisers import SingleCharactersTokenizer
 import math
 from inspect import currentframe
 from config import PRINTDIMS, CONFIG_TOKENIZER
+from config import MAX_LOADED_BLOCKS, BLOCKS_TO_REMOVE
+from config import CONTEXT_LENGTH, EMBEDDING_DIM, HIDDEN_DIM
+from config import NUMBER_OF_BLOCKS, NUMBER_OF_ATTENTION_HEADS
 
-
-MAX_LOADED_BLOCKS = 5
-BLOCKS_TO_REMOVE = 1
-
-CONTEXT_LENGTH = 64
-EMBEDDING_DIM = CONTEXT_LENGTH * 4
-HIDDEN_DIM = EMBEDDING_DIM
-NUMBER_OF_BLOCKS = 20
-NUMBER_OF_ATTENTION_HEADS = 1
 
 if CONFIG_TOKENIZER == "falcon_tokenizer":
     tokenizer = AutoTokenizer.from_pretrained("tiiuae/falcon-40b-instruct")
@@ -27,7 +21,7 @@ else:
 tokenizer.pad_token = tokenizer.eos_token
 vocab = tokenizer.get_vocab()
 VOCAB_SIZE = len(vocab)
-# print("Vocab size : ", VOCAB_SIZE)
+print("Vocab size : ", VOCAB_SIZE)
 
 # device = torch.device("cpu")
 # if torch.cuda.is_available():
@@ -72,7 +66,7 @@ class Routeur(nn.Module):
         printd(f"Lib->Routeur, l{lineno()}, X: ", X.shape, X.type())
         X = self.softmax(X)
         printd(f"Lib->Routeur, l{lineno()}, X: ", X.shape, X.type())
-        idx = torch.multinomial(X, 1)
+        idx = torch.argmax(X, 1)
         printd(f"Lib->Routeur, l{lineno()}, ids: ", idx, type(idx), idx.type())
         return idx
 
@@ -116,17 +110,17 @@ class NextTokenPrediction(nn.Module):
         topk, indices = torch.topk(X, k)
         filtered_indices = indices
         if len(filtered_indices) == 0:
-            return torch.multinomial(X, 1)
+            return torch.argmax(X)
         else:
-            return torch.multinomial(X[filtered_indices], 1)
+            return torch.argmax(X[filtered_indices])
 
     def forward(self, X, topk_sorted_index_limit=None):
         X = torch.flatten(X, start_dim=0)
         printd(f"Lib->NextTkPrediction, l{lineno()}, X : ", X.shape, X.type())
         X = self.lin(X)
         printd(f"Lib->NextTkPrediction, l{lineno()}, X : ", X.shape, X.type())
-        X = self.softmax(X)
-        printd(f"Lib->NextTkPrediction, l{lineno()}, X : ", X.shape, X.type())
+        # X = self.softmax(X)
+        # printd(f"Lib->NextTkPrediction, l{lineno()}, X : ", X.shape, X.type())
 
         return X
 
@@ -134,7 +128,7 @@ class NextTokenPrediction(nn.Module):
         if topk_sorted_index_limit is int:
             idx = self.get_next_token_index(X, topk_sorted_index_limit)
         else:
-            idx = torch.multinomial(X, 1)
+            idx = torch.argmax(X)
 
         return idx
 

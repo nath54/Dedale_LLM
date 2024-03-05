@@ -45,6 +45,12 @@ class MixtofExp(nn.Module):
         self.max_length = max_length
         #
         self.model_name = model_name
+        #
+        self.is_in_training_mode = False
+
+    def set_training_mode(self):
+        self.is_in_training_mode = True
+        self.train()
 
     def forward_block(self, X: torch.Tensor, block_id: int) -> torch.Tensor:
         if block_id not in self.blocks:
@@ -159,7 +165,7 @@ class MixtofExp(nn.Module):
         filename = f"weights/{self.model_name}/moe.pt"
         #
         if os.path.exists(filename):
-            self.load_state_dict(torch.load(filename))
+            self.load_state_dict(torch.load(filename), strict=False)
             self.eval()
 
     def save_weights(self) -> None:
@@ -208,7 +214,13 @@ class MixtofExp(nn.Module):
             block.load_state_dict(
                 torch.load(f"weights/{self.model_name}/block_{block_id}.pt")
             )
-            block.eval()
+            #
+            self.register_module(f"block_{block_id}", block)
+            #
+            if self.is_in_training_mode:
+                block.train()
+            else:
+                block.eval()
             #
             self.blocks[block_id] = {
                 "model": block,

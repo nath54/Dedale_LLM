@@ -24,7 +24,7 @@ class Data:
         # self.end_token: Tensor = tokenizer.encode(tokenizer.eos_token,
         #                                           return_tensors="pt")
         # print("End token : ", self.end_token) -> tensor([[11]])
-        self.end_token: Tensor = Tensor([11])[0].to(int)
+        self.end_token: Tensor = Tensor([0])[0].to(int)
         #
         self.genere_data()
         #
@@ -63,6 +63,11 @@ class Data:
         prepare.
         It determines how many batches of training data will be created.
         """
+        #
+        # txt_X = "1 2 3 4 5 6 7 "
+        # X = tokenizer.encode(txt_X, max_length=CONTEXT_LENGTH,
+        #                      padding="max_length", return_tensors="pt")
+        # return X, Tensor([10])[0].to(int)
         #
         if nb_batch == 1:
             # Single Batch
@@ -113,7 +118,6 @@ class Data:
                 else:
                     Y[j, 0] = self.paragraphs_tks[self.p][0, self.i+1]
                     self.i += 1
-        #
         return X, Y
 
 
@@ -122,16 +126,21 @@ def train(model, epochs):
     batch_size = 1
     #
     data: Data = Data()
-    optimizer = optim.Adam(model.parameters(), lr=0.0001)
+    optimizer = optim.Adam(model.parameters(), lr=0.01)
     loss_fn = nn.CrossEntropyLoss().to(device)
     #
     print("Preparing the model to train...")
     model.to(device)
     model.train()
+
     #
     tb = SummaryWriter()
 
-    for epoch in range(epochs):
+    # for epoch in range(epochs):
+
+    epoch = 0
+    while True:
+        epoch += 1
 
         losses_epoch = []
 
@@ -160,6 +169,12 @@ def train(model, epochs):
             # Show progress while training
             loop.set_description(f'Epoch={epoch}/{epochs}')
             loop.set_postfix(loss=loss.item())
+
+            #
+
+            # for n, p in model.named_parameters():
+            #     print(n, p.shape, p.requires_grad)
+
 
         tb.add_scalar("Loss", sum(losses_epoch)/len(losses_epoch), epoch)
 
