@@ -12,7 +12,7 @@ import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
-from lib import device, tokenizer, CONTEXT_LENGTH
+from lib import device, tokenizer, config
 
 TRAINING_SIZE = 1000
 
@@ -47,7 +47,7 @@ class Data:
                                                         return_tensors="pt"))
 
     def prepare_next_training_batch(self,
-                                    context_length: int = CONTEXT_LENGTH,
+                                    context_length: int,
                                     nb_batch: int = 1):
         """
         The function prepares the next training batch by encoding paragraphs
@@ -63,11 +63,6 @@ class Data:
         prepare.
         It determines how many batches of training data will be created.
         """
-        #
-        # txt_X = "1 2 3 4 5 6 7 "
-        # X = tokenizer.encode(txt_X, max_length=CONTEXT_LENGTH,
-        #                      padding="max_length", return_tensors="pt")
-        # return X, Tensor([10])[0].to(int)
         #
         if nb_batch == 1:
             # Single Batch
@@ -121,12 +116,15 @@ class Data:
         return X, Y
 
 
-def train(model, epochs):
+def train(model):
     #
-    batch_size = 1
+    training_config: dict = config["training"]
     #
     data: Data = Data()
-    optimizer = optim.Adam(model.parameters(), lr=0.01)
+    optimizer = optim.Adam(
+        model.parameters(),
+        lr=training_config["learning_rate"]
+    )
     loss_fn = nn.CrossEntropyLoss().to(device)
     #
     print("Preparing the model to train...")
@@ -152,7 +150,9 @@ def train(model, epochs):
         for i in loop:
 
             X, Y = data.prepare_next_training_batch(
-                context_length=CONTEXT_LENGTH, nb_batch=batch_size)
+                context_length=config["context_length"],
+                nb_batch=training_config["batch_size"]
+            )
             X.to(device)
             Y.to(device)
 
@@ -167,14 +167,15 @@ def train(model, epochs):
             optimizer.step()
 
             # Show progress while training
-            loop.set_description(f'Epoch={epoch}/{epochs}')
+            loop.set_description(
+                f'Epoch={epoch}/{training_config["nb_epochs"]}'
+            )
             loop.set_postfix(loss=loss.item())
 
             #
 
             # for n, p in model.named_parameters():
             #     print(n, p.shape, p.requires_grad)
-
 
         tb.add_scalar("Loss", sum(losses_epoch)/len(losses_epoch), epoch)
 

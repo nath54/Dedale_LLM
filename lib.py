@@ -4,15 +4,44 @@ from transformers import AutoTokenizer
 from custom_tokenisers import SingleCharactersTokenizer
 import math
 from inspect import currentframe
-from config import PRINTDIMS, CONFIG_TOKENIZER
-from config import MAX_LOADED_BLOCKS, BLOCKS_TO_REMOVE
-from config import CONTEXT_LENGTH, EMBEDDING_DIM, HIDDEN_DIM
-from config import NUMBER_OF_BLOCKS, NUMBER_OF_ATTENTION_HEADS
+import sys
+import json
+import os
 
 
-if CONFIG_TOKENIZER == "falcon_tokenizer":
+# Loading config
+def test_config_file(config: dict) -> None:
+    pass
+
+
+# default config path (for later...)
+config_path: str = "config.json"
+
+if len(sys.argv) < 1:
+    print("\u001b[31mError: no config file detected!\u001b[m")
+    exit(1)
+else:
+    config_path = sys.argv[1]
+
+print(f"Using config file: {config_path}")
+if not config_path.endswith(".json"):
+    print("\u001b[31mError: config file is not json!\u001b[m")
+    exit(1)
+#
+if not os.path.exists(config_path):
+    print("\u001b[31mError: config file doesn't exists!\u001b[m")
+    exit(1)
+
+config = {}
+with open(config_path, "r") as f:
+    config = json.load(f)
+
+test_config_file(config)
+
+#
+if config["tokenizer"] == "falcon_tokenizer":
     tokenizer = AutoTokenizer.from_pretrained("tiiuae/falcon-40b-instruct")
-elif CONFIG_TOKENIZER == "single_characters_tokenizer":
+elif config["tokenizer"] == "single_characters_tokenizer":
     tokenizer = SingleCharactersTokenizer()
 else:
     print("\u001b[31mError: bad value of `CONFIG_TOKENIZER`.\u001b[m")
@@ -23,10 +52,10 @@ vocab = tokenizer.get_vocab()
 VOCAB_SIZE = len(vocab)
 print("Vocab size : ", VOCAB_SIZE)
 
-# device = torch.device("cpu")
-# if torch.cuda.is_available():
-#     torch.device("cuda")
 device = torch.device("cpu")
+if torch.cuda.is_available():
+    torch.device("cuda")
+# device = torch.device("cpu")
 
 
 def lineno() -> int:
@@ -35,14 +64,14 @@ def lineno() -> int:
 
 
 def printd(*args):
-    if PRINTDIMS:
+    if config["print_dims"]:
         print("\u001b[34m * ", *args, "\u001b[m")
 
 
 class Embedding(nn.Module):
     def __init__(self):
         super().__init__()
-        self.embedding = nn.Embedding(VOCAB_SIZE, EMBEDDING_DIM)
+        self.embedding = nn.Embedding(VOCAB_SIZE, config["embedding_dim"])
 
     def forward(self, X):
         printd(f"Lib->Embedding, l{lineno()}, X: ", X.shape, type(X), X.type())
@@ -54,8 +83,10 @@ class Embedding(nn.Module):
 class Routeur(nn.Module):
     def __init__(self):
         super().__init__()
-        self.lin = nn.Linear(CONTEXT_LENGTH * EMBEDDING_DIM,
-                             NUMBER_OF_BLOCKS + 1)
+        self.lin = nn.Linear(
+            config["context_length"] * config["embedding_dim"],
+            config["nb_of_blocks"] + 1
+        )
         self.softmax = nn.Softmax(dim=0)
 
     def forward(self, X):
@@ -72,11 +103,16 @@ class Routeur(nn.Module):
 
 
 class FeedForward(nn.Module):
-    def __init__(self):
+    def __init__(self, input_dim: int, hidden_dim: int, output_dim: int):
         super().__init__()
-        self.lin1 = nn.Linear(EMBEDDING_DIM, HIDDEN_DIM)
+        #
+        self.input_dim = input_dim
+        self.hidden_dim = hidden_dim
+        self.output_dim = output_dim
+        #
+        self.lin1 = nn.Linear(input_dim, hidden_dim)
         self.gelu = nn.GELU()
-        self.lin2 = nn.Linear(HIDDEN_DIM, EMBEDDING_DIM)
+        self.lin2 = nn.Linear(hidden_dim, output_dim)
 
     def forward(self, X):
         printd(f"Lib->FeedForward, l{lineno()}, X : ", X.shape, X.type())
@@ -92,7 +128,10 @@ class FeedForward(nn.Module):
 class NextTokenPrediction(nn.Module):
     def __init__(self):
         super().__init__()
-        self.lin = nn.Linear(EMBEDDING_DIM*CONTEXT_LENGTH, VOCAB_SIZE)
+        self.lin = nn.Linear(
+            config["embedding_dim"] * config["context_length"],
+            VOCAB_SIZE
+        )
         self.softmax = nn.Softmax(dim=0)
 
     def get_next_token_index(self, X, k, top_k_value):
@@ -119,8 +158,6 @@ class NextTokenPrediction(nn.Module):
         printd(f"Lib->NextTkPrediction, l{lineno()}, X : ", X.shape, X.type())
         X = self.lin(X)
         printd(f"Lib->NextTkPrediction, l{lineno()}, X : ", X.shape, X.type())
-        # X = self.softmax(X)
-        # printd(f"Lib->NextTkPrediction, l{lineno()}, X : ", X.shape, X.type())
 
         return X
 
@@ -134,15 +171,26 @@ class NextTokenPrediction(nn.Module):
 
 
 class MultiHeadSelfAttention(nn.Module):
-    def __init__(self):
+    def __init__(self, nb_of_attention_heads: int, hidden_dim: int):
         super().__init__()
+        self.nb_of_attention_heads: int = nb_of_attention_heads
+        self.hidden_dim: int = hidden_dim
 
-        self.query_linear = nn.Linear(HIDDEN_DIM, HIDDEN_DIM)
-        # * NUMBER_OF_ATTENTION_HEADS)
-        self.key_linear = nn.Linear(HIDDEN_DIM, HIDDEN_DIM)
-        # * NUMBER_OF_ATTENTION_HEADS)
-        self.value_linear = nn.Linear(HIDDEN_DIM, HIDDEN_DIM)
-        # * NUMBER_OF_ATTENTION_HEADS)
+        self.query_linear = nn.Linear(
+            self.hidden_dim,
+            self.hidden_dim
+        )
+        # * self.nb_of_attention_heads)
+        self.key_linear = nn.Linear(
+            self.hidden_dim,
+            self.hidden_dim
+        )
+        # * self.nb_of_attention_heads)
+        self.value_linear = nn.Linear(
+            self.hidden_dim,
+            self.hidden_dim
+        )
+        # * self.nb_of_attention_heads)
 
         self.softmax = nn.Softmax(dim=-1)
 
@@ -164,34 +212,46 @@ class MultiHeadSelfAttention(nn.Module):
             query = self.query_linear(X)
             printd(f"Lib->MultiHeadSelfAttention, l{lineno()}, Query : ",
                    query.shape)
-            query = query.view(CONTEXT_LENGTH,
-                               NUMBER_OF_ATTENTION_HEADS,
-                               HIDDEN_DIM // NUMBER_OF_ATTENTION_HEADS)
+            query = query.view(
+                config["context_length"],
+                self.nb_of_attention_heads,
+                self.hidden_dim // self.nb_of_attention_heads
+            )
             printd(f"Lib->MultiHeadSelfAttention, l{lineno()}, Query : ",
                    query.shape)
             key = self.key_linear(X)
             printd(f"Lib->MultiHeadSelfAttention, l{lineno()}, Key : ",
                    key.shape)
-            key = key.view(CONTEXT_LENGTH, NUMBER_OF_ATTENTION_HEADS,
-                           HIDDEN_DIM // NUMBER_OF_ATTENTION_HEADS)
+            key = key.view(
+                config["context_length"],
+                self.nb_of_attention_heads,
+                self.hidden_dim // self.nb_of_attention_heads
+            )
             printd(f"Lib->MultiHeadSelfAttention, l{lineno()}, Key : ",
                    key.shape)
             value = self.value_linear(X)
             printd(f"Lib->MultiHeadSelfAttention, l{lineno()}, Value : ",
                    value.shape)
-            value = value.view(CONTEXT_LENGTH,
-                               NUMBER_OF_ATTENTION_HEADS,
-                               HIDDEN_DIM // NUMBER_OF_ATTENTION_HEADS)
+            value = value.view(
+                config["context_length"],
+                self.nb_of_attention_heads,
+                self.hidden_dim // self.nb_of_attention_heads
+            )
             printd(f"Lib->MultiHeadSelfAttention, l{lineno()}, Value : ",
                    value.shape)
 
-            attention = torch.matmul(query,
-                                     key.transpose(-1, -2)) / math.sqrt(
-                                     HIDDEN_DIM // NUMBER_OF_ATTENTION_HEADS)
+            attention = torch.matmul(
+                query,
+                key.transpose(-1, -2)) / math.sqrt(
+                    self.hidden_dim // self.nb_of_attention_heads
+                )
+
             attention = self.softmax(attention)
 
-            output = torch.matmul(attention, value).view(CONTEXT_LENGTH,
-                                                         HIDDEN_DIM)
+            output = torch.matmul(attention, value).view(
+                config["context_length"],
+                self.hidden_dim
+            )
             printd(f"Lib->MultiHeadSelfAttention, l{lineno()}, out : ",
                    output.shape)
         else:
@@ -200,36 +260,50 @@ class MultiHeadSelfAttention(nn.Module):
             query = self.query_linear(X)
             printd(f"Lib->MultiHeadSelfAttention, l{lineno()}, Query : ",
                    query.shape)
-            query = query.view(batch_size, CONTEXT_LENGTH,
-                               NUMBER_OF_ATTENTION_HEADS,
-                               HIDDEN_DIM // NUMBER_OF_ATTENTION_HEADS)
+            query = query.view(
+                batch_size,
+                config["context_length"],
+                self.nb_of_attention_heads,
+                self.hidden_dim // self.nb_of_attention_heads
+            )
             printd(f"Lib->MultiHeadSelfAttention, l{lineno()}, Query : ",
                    query.shape)
             key = self.key_linear(X)
             printd(f"Lib->MultiHeadSelfAttention, l{lineno()}, Key : ",
                    key.shape)
-            key = key.view(batch_size, CONTEXT_LENGTH,
-                           NUMBER_OF_ATTENTION_HEADS,
-                           HIDDEN_DIM // NUMBER_OF_ATTENTION_HEADS)
+            key = key.view(
+                batch_size,
+                config["context_length"],
+                self.nb_of_attention_heads,
+                self.hidden_dim // self.nb_of_attention_heads
+            )
             printd(f"Lib->MultiHeadSelfAttention, l{lineno()}, Key : ",
                    key.shape)
             value = self.value_linear(X)
             printd(f"Lib->MultiHeadSelfAttention, l{lineno()}, Value : ",
                    value.shape)
-            value = value.view(batch_size, CONTEXT_LENGTH,
-                               NUMBER_OF_ATTENTION_HEADS,
-                               HIDDEN_DIM // NUMBER_OF_ATTENTION_HEADS)
+            value = value.view(
+                batch_size,
+                config["context_length"],
+                self.nb_of_attention_heads,
+                self.hidden_dim // self.nb_of_attention_heads
+            )
             printd(f"Lib->MultiHeadSelfAttention, l{lineno()}, Value : ",
                    value.shape)
 
-            attention = torch.matmul(query,
-                                     key.transpose(-1, -2)) / math.sqrt(
-                                     HIDDEN_DIM // NUMBER_OF_ATTENTION_HEADS)
+            attention = torch.matmul(
+                query,
+                key.transpose(-1, -2)
+            ) / math.sqrt(
+                self.hidden_dim // self.nb_of_attention_heads
+            )
             attention = self.softmax(attention)
 
-            output = torch.matmul(attention, value).view(batch_size,
-                                                         CONTEXT_LENGTH,
-                                                         HIDDEN_DIM)
+            output = torch.matmul(attention, value).view(
+                batch_size,
+                config["context_length"],
+                self.hidden_dim
+            )
             printd(f"Lib->MultiHeadSelfAttention, l{lineno()}, out : ",
                    output.shape)
 
@@ -237,12 +311,29 @@ class MultiHeadSelfAttention(nn.Module):
 
 
 class Block(nn.Module):
-    def __init__(self):
+    def __init__(self, id_block: int = -1):
         super().__init__()
-        self.attention = MultiHeadSelfAttention()
-        self.ln1 = nn.LayerNorm((EMBEDDING_DIM))
-        self.ff = FeedForward()
-        self.ln2 = nn.LayerNorm((EMBEDDING_DIM))
+        self.id_block: int = id_block
+        if (self.id_block == -1) or (self.id_block not in config[""].keys()):
+            self.hidden_dim = config["blocks"]["default"]["hidden_dim"]
+            self.nb_of_attention_heads = \
+                config["blocks"]["default"]["nb_of_attention_heads"]
+        else:
+            self.hidden_dim = config["blocks"][self.id_block]["hidden_dim"]
+            self.nb_of_attention_heads = \
+                config["blocks"][self.id_block]["nb_of_attention_heads"]
+        #
+        self.attention = MultiHeadSelfAttention(
+            nb_of_attention_heads=self.nb_of_attention_heads,
+            hidden_dim=self.hidden_dim
+        )
+        self.ln1 = nn.LayerNorm((config["embedding_dim"]))
+        self.ff = FeedForward(
+            input_dim=config["embedding_dim"],
+            hidden_dim=self.hidden_dim,
+            output_dim=config["embedding_dim"]
+        )
+        self.ln2 = nn.LayerNorm((config["embedding_dim"]))
 
     def forward(self, X):
         printd(f"Lib->Block, l{lineno()}, X : ", X.shape, X.type())

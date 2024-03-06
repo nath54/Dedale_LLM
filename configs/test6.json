@@ -1,0 +1,36 @@
+{
+    "model_name": "test6",
+    "force_passage": [0, 1, 2, 3],
+    "tokenizer": "single_characters_tokenizer",
+    "print_dims": 0,
+
+    "max_loaded_blocks": 5,
+    "nb_blocks_to_remove": 1,
+
+    "context_length": 16,
+    "embedding_dim": 64,
+    "nb_of_blocks": 20,
+
+    "blocks": {
+        "default": {
+            "hidden_dim": 64,
+            "nb_of_attention_heads": 1
+        }
+    },
+
+    "training": {
+        "strategy": "fixed_nb_of_epochs",
+        "nb_epochs": 1000,
+        "batch_size": 1,
+        "learning_rate": 0.01,
+
+        "data": {
+
+        },
+
+        "freeze_blocks": [],
+        "freeze_embeddings": 0,
+        "freeze_next_token_prediction": 0,
+        "freeze_router": 1
+    }
+}

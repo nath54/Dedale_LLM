@@ -1,11 +1,10 @@
-from lib import tokenizer, CONTEXT_LENGTH
+from lib import tokenizer, config
 from model import MixtofExp
-from config import CONFIG_MODEL_NAME, CONFIG_MODEL_FORCE_PASSAGE
 
 if __name__ == "__main__":
     model = MixtofExp(
-        force_passage=CONFIG_MODEL_FORCE_PASSAGE,
-        model_name=CONFIG_MODEL_NAME
+        force_passage=config["force_passage"],
+        model_name=config["model_name"]
     )
     model.load_weights()
 
@@ -16,8 +15,8 @@ if __name__ == "__main__":
     out = None
     while c < mc and out != tokenizer.eos_token:
         c += 1
-        if len(t1) >= CONTEXT_LENGTH:
-            out = model.use(t1[-CONTEXT_LENGTH:])
+        if len(t1) >= config["context_length"]:
+            out = model.use(t1[-config["context_length"]:])
         else:
             out = model.use(t1)
         out = out.replace("Ġ", " ")

@@ -1,5 +1,5 @@
 from lib import Embedding, Routeur, NextTokenPrediction, Block
-from lib import MAX_LOADED_BLOCKS, CONTEXT_LENGTH, BLOCKS_TO_REMOVE
+from lib import config
 from lib import printd, tokenizer, lineno
 
 import torch
@@ -38,8 +38,8 @@ class MixtofExp(nn.Module):
         self.max_routeur_passages: int = max_routeur_passages
         self.force_passage: list[int] = force_passage
 
-        self.max_blocks: int = MAX_LOADED_BLOCKS
-        self.nb_blocks_to_remove: int = BLOCKS_TO_REMOVE
+        self.max_blocks: int = config["max_loaded_blocks"]
+        self.nb_blocks_to_remove: int = config["nb_blocks_to_remove"]
         self.blocks: dict = {}
         #
         self.max_length = max_length
@@ -122,10 +122,13 @@ class MixtofExp(nn.Module):
 
     def forward_txt(self, txt: str):
         #
-        X: torch.Tensor = tokenizer.encode(txt, max_length=CONTEXT_LENGTH,
-                                           padding="max_length",
-                                           truncation=True,
-                                           return_tensors="pt")
+        X: torch.Tensor = tokenizer.encode(
+            txt,
+            max_length=config["context_length"],
+            padding="max_length",
+            truncation=True,
+            return_tensors="pt"
+        )
         printd(f"Model->forward_txt, l{lineno()}, X: ", X.shape, type(X))
         printd(X)
         #
