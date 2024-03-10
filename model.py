@@ -176,6 +176,8 @@ class MixtofExp(nn.Module):
         This function saves the weights of a model.
         """
         #
+        if not os.path.exists("weights/"):
+            os.mkdir("weights/")
         if not os.path.exists(f"weights/{self.model_name}/"):
             os.mkdir(f"weights/{self.model_name}/")
         #
@@ -212,6 +214,8 @@ class MixtofExp(nn.Module):
                 else:
                     break
         #
+        if not os.path.exists("weights/"):
+            os.mkdir("weights/")
         if os.path.exists(f"weights/{self.model_name}/block_{block_id}.pt"):
             block = Block()
             block.load_state_dict(

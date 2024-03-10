@@ -18,19 +18,40 @@
         }
     },
 
-    "training": {
-        "strategy": "fixed_nb_of_epochs",
-        "nb_epochs": 1000,
-        "batch_size": 1,
-        "learning_rate": 0.01,
+    "data": {
+        "compter": "data/compter.txt",
+        "decroitre": "data/decroitre.txt"
+    },
 
-        "data": {
-
+    "training": [
+        {
+            "strategy": "fixed_nb_of_epochs",
+            "nb_epochs": 10000,
+            "forwards_per_epoch": 1000,
+            "batch_size": 1,
+            "learning_rate": 0.01,
+            "datasets_used": ["compter"],
+            "force_passage": [0, 1, 2, 3],
+            
+            "freeze_blocks": [],
+            "freeze_embeddings": 0,
+            "freeze_next_token_prediction": 0,
+            "freeze_router": 1
         },
 
-        "freeze_blocks": [],
-        "freeze_embeddings": 0,
-        "freeze_next_token_prediction": 0,
-        "freeze_router": 1
-    }
+        {
+            "strategy": "fixed_nb_of_epochs",
+            "nb_epochs": 10000,
+            "forwards_per_epoch": 1000,
+            "batch_size": 1,
+            "learning_rate": 0.01,
+            "datasets_used": ["decroitre"],
+            "force_passage": [4, 5, 6, 7],
+            
+            "freeze_blocks": [],
+            "freeze_embeddings": 1,
+            "freeze_next_token_prediction": 1,
+            "freeze_router": 1
+        }
+    ]
 }

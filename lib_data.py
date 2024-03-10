@@ -111,7 +111,7 @@ class DataContainer:
         # Tokenize the text
         self._data[key] = self._tokenizer.encode(
             txt,
-            max_length = self.padding_context_length,
+            max_length = self._padding_context_length,
             padding = "max_length" if self._padding_context_length else "none",
             truncation = True,
             return_tensors = "pt"
@@ -129,8 +129,8 @@ class DataContainer:
         assert key in self._files, "Key error !"
         #
         X: torch.Tensor = torch.zeros(
-            (nb_prompts, self._padding_context_length))
-        Y: torch.Tensor = torch.zeros((nb_prompts, 1))
+            (nb_prompts, self._padding_context_length)).to(int)
+        Y: torch.Tensor = torch.zeros((nb_prompts)).to(int)
         #
         if self._randomized_access:
             len_data: int = self._data[key].size()[0]
@@ -141,11 +141,11 @@ class DataContainer:
                 #
                 i: int = randint(0, len_data)
                 s: int = min(self._padding_context_length, len_data-i)
-                X[k, 0:s] = self._data[key][i:i+s]
+                X[k, 0:s] = self._data[key][0, i:i+s]
                 if i+s >= len_data - 1: # End of file
                     Y[k] = self._end_token
                 else:
-                    Y[k] = self._data[key][i+s]
+                    Y[k] = self._data[key][0, i+s]
                 #
                 self._files[key]["accesses_left"] -= 1
         else:
@@ -157,16 +157,16 @@ class DataContainer:
                 #
                 i: int = self._file[key]["cursor"]
                 s: int = min(self._padding_context_length, len_data-i)
-                X[k, 0:s] = self._data[key][i:i+s]
+                X[k, 0:s] = self._data[key][0, i:i+s]
                 if i+s >= len_data - 1: # End of file
                     Y[k] = self._end_token
                 else:
-                    Y[k] = self._data[key][i+s]
+                    Y[k] = self._data[key][0, i+s]
                 #
                 self._file[key]["cursor"] += 1
                 self._files[key]["accesses_left"] -= 1
         #
-        return (X, Y)
+        return (X, Y[0])
        
     #
     def get_data(
@@ -182,9 +182,9 @@ class DataContainer:
             return self.get_data_1batch(nb_prompts, key)
         else:
             X: torch.Tensor = torch.zeros(
-                (nb_batch, nb_prompts, self._padding_context_length))
+                (nb_batch, nb_prompts, self._padding_context_length)).to(int)
             Y: torch.Tensor = torch.zeros(
-                (nb_batch, nb_prompts, 1))
+                (nb_batch, nb_prompts, 1)).to(int)
             #
             for i in range(nb_batch):
                 X[i], Y[i] = self.get_data_1batch(nb_prompts, key)
