@@ -116,6 +116,8 @@ class DataContainer:
             truncation=True,
             return_tensors="pt"
         )
+        if len(self._data[key].size()) > 1:
+            self._data[key] = self._data[key].squeeze()
         #
         self._files[key]["cursor"] = 0
         self._files[key]["accesses_left"] = self._prompt_per_stream
@@ -142,11 +144,11 @@ class DataContainer:
             #
             i: int = randint(0, len_data)
             s: int = min(self._padding_context_length, len_data-i)
-            X[0:s] = self._data[key][0, i:i+s]
+            X[0:s] = self._data[key][i:i+s]
             if i+s >= len_data - 1:  # End of file
                 Y[0] = self._end_token
             else:
-                Y[0] = self._data[key][0, i+s]
+                Y[0] = self._data[key][i+s]
             #
             self._files[key]["accesses_left"] -= 1
         else:
@@ -157,11 +159,11 @@ class DataContainer:
             #
             i: int = self._file[key]["cursor"]
             s: int = min(self._padding_context_length, len_data-i)
-            X[0:s] = self._data[key][0, i:i+s]
+            X[0:s] = self._data[key][i:i+s]
             if i+s >= len_data - 1:  # End of file
                 Y[0] = self._end_token
             else:
-                Y[0] = self._data[key][0, i+s]
+                Y[0] = self._data[key][i+s]
             #
             self._file[key]["cursor"] += 1
             self._files[key]["accesses_left"] -= 1

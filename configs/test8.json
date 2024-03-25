@@ -4,8 +4,8 @@
     "tokenizer": "single_characters_tokenizer",
     "print_dims": 0,
 
-    "max_loaded_blocks": 5,
-    "nb_blocks_to_remove": 1,
+    "max_loaded_blocks": 20,
+    "nb_blocks_to_remove": 7,
 
     "context_length": 32,
     "embedding_dim": 256,
@@ -27,9 +27,9 @@
     "training": [{
             "strategy": "fixed_nb_of_epochs",
             "nb_epochs": 10000,
-            "forwards_per_epoch": 100,
+            "forwards_per_epoch": 293,
             "batch_size": 10,
-            "learning_rate": 0.01,
+            "learning_rate": 1,
             "datasets_used": ["petit_compter"],
             "force_passage": [0, 1, 2, 3, 4, 5],
 

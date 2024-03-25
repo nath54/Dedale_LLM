@@ -73,15 +73,15 @@ class MixtofExp(nn.Module):
         routeur_passages: int = 1
     ) -> torch.Tensor:
         block_id_t: torch.Tensor = self.routeur(X)
-        block_id: Union[int, float] = block_id_t.item()
+        block_id: int = int(block_id_t.item())
         printd(f"Model, l{lineno()}, block_id : ", block_id, type(block_id))
         while block_id != 0 or routeur_passages < self.max_routeur_passages:
             routeur_passages += 1
             #
             X = self.forward_block(X, block_id)
             #
-            block_id_t: torch.Tensor = self.routeur(X)
-            block_id: int = block_id_t.item()
+            block_id_t = self.routeur(X)
+            block_id = int(block_id_t.item())
         #
         return X
 
@@ -207,17 +207,17 @@ class MixtofExp(nn.Module):
         """
         #
         if len(self.blocks) >= self.max_blocks:
-            while len(self.blocks) <= self.max_blocks-self.nb_blocks_to_remove:
-                min_block = None
+            while len(self.blocks) >= self.max_blocks-self.nb_blocks_to_remove:
+                min_blk: Union[int, None] = None
                 for i in self.blocks:
-                    if min_block is None or \
-                       self.blocks[min_block]["usage"] \
-                       > self.blocks[i]["usage"]:
-
-                        min_block = i
+                    if min_blk is None or \
+                       self.blocks[min_blk]["usage"] > self.blocks[i]["usage"]:
+                        min_blk = i
                 #
-                if min_block is not None:
-                    self.unload_block(min_block)
+                if min_blk is not None:
+                    printd("Limit of blocks reached."
+                           f"Unloading block : {min_blk}")
+                    self.unload_block(min_blk)
                 else:
                     break
         #
@@ -228,6 +228,8 @@ class MixtofExp(nn.Module):
             block.load_state_dict(
                 torch.load(f"weights/{self.model_name}/block_{block_id}.pt")
             )
+            #
+            printd(f"Loading block : {block_id}")
             #
             self.register_module(f"block_{block_id}", block)
             #
