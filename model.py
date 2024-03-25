@@ -1,6 +1,8 @@
 from lib import Embedding, Routeur, NextTokenPrediction, Block
-from lib import config
+from lib import config, device
 from lib import printd, tokenizer, lineno
+
+from typing import Union
 
 import torch
 import torch.nn as nn
@@ -71,7 +73,7 @@ class MixtofExp(nn.Module):
         routeur_passages: int = 1
     ) -> torch.Tensor:
         block_id_t: torch.Tensor = self.routeur(X)
-        block_id: int = block_id_t.item()
+        block_id: Union[int, float] = block_id_t.item()
         printd(f"Model, l{lineno()}, block_id : ", block_id, type(block_id))
         while block_id != 0 or routeur_passages < self.max_routeur_passages:
             routeur_passages += 1
@@ -128,7 +130,7 @@ class MixtofExp(nn.Module):
             padding="max_length",
             truncation=True,
             return_tensors="pt"
-        )
+        ).to(device)
         printd(f"Model->forward_txt, l{lineno()}, X: ", X.shape, type(X))
         printd(X)
         #
@@ -146,10 +148,15 @@ class MixtofExp(nn.Module):
         :return: the token corresponding to the index obtained from
         the forward pass of the model.
         """
+        printd(f"Model->forward_txt, l{lineno()}, txt: \"{txt}\"")
         idx = self.next_token_prediction.get_next_token_idx(
                 self.forward_txt(txt))
+        printd(f"Model->forward_txt, l{lineno()}, idx: \"{idx}\"")
         idx = idx.item()
+        printd(f"Model->forward_txt, l{lineno()}, idx: \"{idx}\"")
         tk = tokenizer.convert_ids_to_tokens(idx)
+        printd(f"Model->forward_txt, l{lineno()}"
+               f", tk: \"{tk}\"")
         return tk
 
     def load_weights(self) -> None:

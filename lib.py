@@ -66,6 +66,15 @@ def printd(*args):
         print("\u001b[34m * ", *args, "\u001b[m")
 
 
+def print_params(model: nn.Module):
+    for params in model.parameters():
+        print(
+            "\u001b[35m"
+            f"{params}"
+            "\u001b[m"
+        )
+
+
 class Embedding(nn.Module):
     def __init__(self):
         super().__init__()

@@ -1,0 +1,57 @@
+{
+    "model_name": "test8",
+    "force_passage": [0, 1, 2, 3, 4, 5],
+    "tokenizer": "single_characters_tokenizer",
+    "print_dims": 0,
+
+    "max_loaded_blocks": 5,
+    "nb_blocks_to_remove": 1,
+
+    "context_length": 32,
+    "embedding_dim": 256,
+    "nb_of_blocks": 20,
+
+    "blocks": {
+        "default": {
+            "hidden_dim": 256,
+            "nb_of_attention_heads": 1
+        }
+    },
+
+    "data": {
+        "petit_compter": "data/petit_compter.txt",
+        "compter": "data/compter.txt",
+        "decroitre": "data/decroitre.txt"
+    },
+
+    "training": [{
+            "strategy": "fixed_nb_of_epochs",
+            "nb_epochs": 10000,
+            "forwards_per_epoch": 100,
+            "batch_size": 10,
+            "learning_rate": 0.01,
+            "datasets_used": ["petit_compter"],
+            "force_passage": [0, 1, 2, 3, 4, 5],
+
+            "freeze_blocks": [],
+            "freeze_embeddings": 0,
+            "freeze_next_token_prediction": 0,
+            "freeze_router": 1
+        },
+
+        {
+            "strategy": "fixed_nb_of_epochs",
+            "nb_epochs": 10000,
+            "forwards_per_epoch": 1000,
+            "batch_size": 10,
+            "learning_rate": 0.01,
+            "datasets_used": ["decroitre"],
+            "force_passage": [6, 7, 8, 9, 10, 11],
+
+            "freeze_blocks": [],
+            "freeze_embeddings": 1,
+            "freeze_next_token_prediction": 1,
+            "freeze_router": 1
+        }
+    ]
+}

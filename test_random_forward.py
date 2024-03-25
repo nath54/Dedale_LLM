@@ -1,11 +1,11 @@
-from lib import tokenizer, config
+from lib import tokenizer, config, device
 from model import MixtofExp
 
 if __name__ == "__main__":
     model = MixtofExp(
         force_passage=config["force_passage"],
         model_name=config["model_name"]
-    )
+    ).to(device)
     model.load_weights()
 
     t1 = "31 32 33 34 35 36 37 38 39 40"
