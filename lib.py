@@ -52,10 +52,8 @@ vocab = tokenizer.get_vocab()
 VOCAB_SIZE = len(vocab)
 print("Vocab size : ", VOCAB_SIZE)
 
-device = torch.device("cpu")
-if torch.cuda.is_available():
-    torch.device("cuda")
-# device = torch.device("cpu")
+device = "cuda" if torch.cuda.is_available() else "cpu"
+print(f"Device: {device}")
 
 
 def lineno() -> int:
@@ -74,9 +72,9 @@ class Embedding(nn.Module):
         self.embedding = nn.Embedding(VOCAB_SIZE, config["embedding_dim"])
 
     def forward(self, X):
-        printd(f"Lib->Embedding, l{lineno()}, X: ", X.shape, type(X), X.type())
+        printd(f"Lib->Embedding, l{lineno()}, X: ", X.shape, X.type())
         X = self.embedding(X)
-        printd(f"Lib->Embedding, l{lineno()}, X: ", X.shape, type(X), X.type())
+        printd(f"Lib->Embedding, l{lineno()}, X: ", X.shape, X.type())
         return X
 
 
@@ -129,7 +127,8 @@ class NextTokenPrediction(nn.Module):
     def __init__(self):
         super().__init__()
         self.lin = nn.Linear(
-            config["embedding_dim"] * config["context_length"],
+            config["embedding_dim"]
+            * config["context_length"],
             VOCAB_SIZE
         )
         self.softmax = nn.Softmax(dim=0)
@@ -154,7 +153,12 @@ class NextTokenPrediction(nn.Module):
             return torch.argmax(X[filtered_indices])
 
     def forward(self, X, topk_sorted_index_limit=None):
-        X = torch.flatten(X, start_dim=0)
+        #
+        if len(X.shape) >= 3:  # Si batch
+            X = torch.flatten(X, start_dim=1)
+        else:  # Pas de Batch
+            X = torch.flatten(X, start_dim=0)
+        #
         printd(f"Lib->NextTkPrediction, l{lineno()}, X : ", X.shape, X.type())
         X = self.lin(X)
         printd(f"Lib->NextTkPrediction, l{lineno()}, X : ", X.shape, X.type())
@@ -179,17 +183,17 @@ class MultiHeadSelfAttention(nn.Module):
         self.query_linear = nn.Linear(
             self.hidden_dim,
             self.hidden_dim
-        )
+        ).to(device)
         # * self.nb_of_attention_heads)
         self.key_linear = nn.Linear(
             self.hidden_dim,
             self.hidden_dim
-        )
+        ).to(device)
         # * self.nb_of_attention_heads)
         self.value_linear = nn.Linear(
             self.hidden_dim,
             self.hidden_dim
-        )
+        ).to(device)
         # * self.nb_of_attention_heads)
 
         self.softmax = nn.Softmax(dim=-1)
@@ -208,6 +212,8 @@ class MultiHeadSelfAttention(nn.Module):
 
         if (len(X.shape) == 2):
             _, _ = X.shape
+            printd(f"Lib->MultiHeadSelfAttention, l{lineno()},"
+                   f"Passing without batchs.")
 
             query = self.query_linear(X)
             printd(f"Lib->MultiHeadSelfAttention, l{lineno()}, Query : ",
@@ -255,7 +261,16 @@ class MultiHeadSelfAttention(nn.Module):
             printd(f"Lib->MultiHeadSelfAttention, l{lineno()}, out : ",
                    output.shape)
         else:
+            # X = X.view(X.shape[0], X.shape[2], X.shape[3])
+            # print(X.shape)
             batch_size, _, _ = X.shape
+
+            printd(f"Lib->MultiHeadSelfAttention, l{lineno()},"
+                   f"Passing with batchs : {batch_size}")
+
+            printd(f"Lib->MultiHeadSelfAttention, l{lineno()},"
+                   f" QueryLinear : {type(self.query_linear)}, "
+                   f"{next(self.query_linear.parameters()).device}")
 
             query = self.query_linear(X)
             printd(f"Lib->MultiHeadSelfAttention, l{lineno()}, Query : ",
@@ -326,14 +341,14 @@ class Block(nn.Module):
         self.attention = MultiHeadSelfAttention(
             nb_of_attention_heads=self.nb_of_attention_heads,
             hidden_dim=self.hidden_dim
-        )
-        self.ln1 = nn.LayerNorm((config["embedding_dim"]))
+        ).to(device)
+        self.ln1 = nn.LayerNorm((config["embedding_dim"])).to(device)
         self.ff = FeedForward(
             input_dim=config["embedding_dim"],
             hidden_dim=self.hidden_dim,
             output_dim=config["embedding_dim"]
-        )
-        self.ln2 = nn.LayerNorm((config["embedding_dim"]))
+        ).to(device)
+        self.ln2 = nn.LayerNorm((config["embedding_dim"])).to(device)
 
     def forward(self, X):
         printd(f"Lib->Block, l{lineno()}, X : ", X.shape, X.type())

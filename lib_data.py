@@ -96,7 +96,7 @@ class DataContainer:
         self._data[key] = torch.Tensor(0)
 
     #
-    def next_stream_data(self, key: str | int = "default") :
+    def next_stream_data(self, key: str | int = "default"):
         #
         assert key in self._files, "Key error !"
         # If end of file, returning to the beginning
@@ -111,67 +111,66 @@ class DataContainer:
         # Tokenize the text
         self._data[key] = self._tokenizer.encode(
             txt,
-            max_length = self._padding_context_length,
-            padding = "max_length" if self._padding_context_length else "none",
-            truncation = True,
-            return_tensors = "pt"
+            max_length=self._padding_context_length,
+            padding="max_length" if self._padding_context_length else "none",
+            truncation=True,
+            return_tensors="pt"
         )
         #
         self._files[key]["cursor"] = 0
         self._files[key]["accesses_left"] = self._prompt_per_stream
-    
+
     #
-    def get_data_1batch(self,
-        nb_prompts: int = 1,
+    def get_data_1batch(
+        self,
         key: str | int = "default"
     ) -> tuple[torch.Tensor, torch.Tensor]:
         #
         assert key in self._files, "Key error !"
         #
         X: torch.Tensor = torch.zeros(
-            (nb_prompts, self._padding_context_length)).to(int)
-        Y: torch.Tensor = torch.zeros((nb_prompts)).to(int)
+            (self._padding_context_length)).to(torch.long)
+        Y: torch.Tensor = torch.zeros((1)).to(torch.long)
+        #
+        len_data: int = 0
         #
         if self._randomized_access:
-            len_data: int = self._data[key].size()[0]
-            for k in range(nb_prompts):
-                #
-                if self._files[key]["accesses_left"] <= 0:
-                    self.next_stream_data(key)
-                #
-                i: int = randint(0, len_data)
-                s: int = min(self._padding_context_length, len_data-i)
-                X[k, 0:s] = self._data[key][0, i:i+s]
-                if i+s >= len_data - 1: # End of file
-                    Y[k] = self._end_token
-                else:
-                    Y[k] = self._data[key][0, i+s]
-                #
-                self._files[key]["accesses_left"] -= 1
+            len_data = self._data[key].size()[0]
+            #
+            if self._files[key]["accesses_left"] <= 0:
+                self.next_stream_data(key)
+            #
+            i: int = randint(0, len_data)
+            s: int = min(self._padding_context_length, len_data-i)
+            X[0:s] = self._data[key][0, i:i+s]
+            if i+s >= len_data - 1:  # End of file
+                Y[0] = self._end_token
+            else:
+                Y[0] = self._data[key][0, i+s]
+            #
+            self._files[key]["accesses_left"] -= 1
         else:
-            len_data: int = self._data[key].size()[0]
-            for k in range(nb_prompts):
-                #
-                if self._files[key]["accesses_left"] <= 0:
-                    self.next_stream_data(key)
-                #
-                i: int = self._file[key]["cursor"]
-                s: int = min(self._padding_context_length, len_data-i)
-                X[k, 0:s] = self._data[key][0, i:i+s]
-                if i+s >= len_data - 1: # End of file
-                    Y[k] = self._end_token
-                else:
-                    Y[k] = self._data[key][0, i+s]
-                #
-                self._file[key]["cursor"] += 1
-                self._files[key]["accesses_left"] -= 1
+            len_data = self._data[key].size()[0]
+            #
+            if self._files[key]["accesses_left"] <= 0:
+                self.next_stream_data(key)
+            #
+            i: int = self._file[key]["cursor"]
+            s: int = min(self._padding_context_length, len_data-i)
+            X[0:s] = self._data[key][0, i:i+s]
+            if i+s >= len_data - 1:  # End of file
+                Y[0] = self._end_token
+            else:
+                Y[0] = self._data[key][0, i+s]
+            #
+            self._file[key]["cursor"] += 1
+            self._files[key]["accesses_left"] -= 1
         #
         return (X, Y[0])
-       
+
     #
     def get_data(
         self,
-        nb_prompts: int = 1,
         nb_batch: int = 1,
         key: str | int = "default"
     ) -> tuple[torch.Tensor, torch.Tensor]:
@@ -179,15 +178,20 @@ class DataContainer:
         assert key in self._files, "Key error !"
         #
         if nb_batch == 1:
-            return self.get_data_1batch(nb_prompts, key)
+            return self.get_data_1batch(key)
         else:
+            #
             X: torch.Tensor = torch.zeros(
-                (nb_batch, nb_prompts, self._padding_context_length)).to(int)
+                (
+                    nb_batch,
+                    self._padding_context_length
+                )
+            ).to(torch.long)
+            #
             Y: torch.Tensor = torch.zeros(
-                (nb_batch, nb_prompts, 1)).to(int)
+                (nb_batch)).to(torch.long)
             #
             for i in range(nb_batch):
-                X[i], Y[i] = self.get_data_1batch(nb_prompts, key)
+                X[i], Y[i] = self.get_data_1batch(key)
             #
             return (X, Y)
-        

@@ -6,7 +6,7 @@ import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
-from lib import device, tokenizer, config
+from lib import device, tokenizer, config, printd
 from lib_data import DataContainer
 
 from random import choice as rchoice
@@ -104,12 +104,15 @@ def training_simple_epochs(
         for i in loop:
 
             X, Y = data_container.get_data(
-                nb_prompts=1,
                 nb_batch=training_config["batch_size"],
-                key = rchoice(training_config["datasets_used"])
+                key=rchoice(training_config["datasets_used"])
             )
-            X.to(device)
-            Y.to(device)
+            X = X.to(device)
+            Y = Y.to(device)
+
+            printd(f"* Before Training: \n"
+                   f"    - X:{X.shape, X.type(), X.device},\n"
+                   f"    - Y:{Y.shape, Y.type(), Y.device}")
 
             optimizer.zero_grad()
 
