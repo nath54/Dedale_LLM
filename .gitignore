@@ -4,3 +4,5 @@ runs
 weights
 data/*.txt
 launch_tensorboard.bat
+access_tokens/*
+*token*

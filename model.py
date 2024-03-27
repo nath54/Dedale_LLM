@@ -2,7 +2,7 @@ from lib import Embedding, Routeur, NextTokenPrediction, Block
 from lib import config, device
 from lib import printd, tokenizer, lineno
 
-from typing import Union
+from typing import Union, List
 
 import torch
 import torch.nn as nn
@@ -70,18 +70,26 @@ class MixtofExp(nn.Module):
     def forward_routeur_passage(
         self,
         X: torch.Tensor,
-        routeur_passages: int = 1
+        routeur_passages: int = 1,
+        blocks_filter: List[int] = []
     ) -> torch.Tensor:
-        block_id_t: torch.Tensor = self.routeur(X)
-        block_id: int = int(block_id_t.item())
+        #
+        block_id_t: torch.Tensor = self.routeur(X, blocks_filter)
+        if block_id_t.shape[0] > 1: # Multiple batchs
+            block_id: int = int(torch.argmax(torch.bincount(block_id_t)).item())
+        else: # Unique Batch
+            block_id: int = int(block_id_t.item())
         printd(f"Model, l{lineno()}, block_id : ", block_id, type(block_id))
         while block_id != 0 or routeur_passages < self.max_routeur_passages:
             routeur_passages += 1
             #
             X = self.forward_block(X, block_id)
             #
-            block_id_t = self.routeur(X)
-            block_id = int(block_id_t.item())
+            block_id_t = self.routeur(X, blocks_filter)
+            if block_id_t.shape[0] > 1: # Multiple batchs
+                block_id = int(torch.argmax(torch.bincount(block_id_t)).item())
+            else: # Unique Batch
+                block_id = int(block_id_t.item())
         #
         return X
 
@@ -110,6 +118,9 @@ class MixtofExp(nn.Module):
                     break
                 elif block_id == PASSAGE_CONTINUE_WITH_ROUTEUR:
                     self.forward_routeur_passage(X, routeur_passages)
+                    break
+                elif isinstance(block_id, list):
+                    self.forward_routeur_passage(X, routeur_passages, block_id)
                     break
                 #
                 routeur_passages += 1

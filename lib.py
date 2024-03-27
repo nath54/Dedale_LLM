@@ -1,12 +1,15 @@
 import torch
 from torch import nn, Tensor
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, LlamaTokenizer
+from transformers import GPT2Tokenizer
 from custom_tokenisers import SingleCharactersTokenizer
 import math
 from inspect import currentframe
 import sys
 import json
 import os
+
+from typing import List
 
 
 # Loading config
@@ -41,6 +44,18 @@ test_config_file(config)
 #
 if config["tokenizer"] == "falcon_tokenizer":
     tokenizer = AutoTokenizer.from_pretrained("tiiuae/falcon-40b-instruct")
+elif config["tokenizer"] == "llama_tokenizer":
+    with open("access_tokens/gemma_token") as f:
+        tk = f.read()
+    tokenizer = LlamaTokenizer.from_pretrained("meta-llama/Llama-2-7b",
+                                               access_token=tk)
+elif config["tokenizer"] == "gemma_tokenizer":
+    with open("access_tokens/gemma_token") as f:
+        tk = f.read()
+    tokenizer = AutoTokenizer.from_pretrained("google/gemma-2b",
+                                              access_token=tk)
+elif config["tokenizer"] == "gpt2_tokenizer":
+    tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
 elif config["tokenizer"] == "single_characters_tokenizer":
     tokenizer = SingleCharactersTokenizer()
 else:
@@ -78,10 +93,15 @@ def print_params(model: nn.Module):
 class Embedding(nn.Module):
     def __init__(self):
         super().__init__()
-        self.embedding = nn.Embedding(VOCAB_SIZE, config["embedding_dim"])
+        self.embedding = nn.Embedding(VOCAB_SIZE,
+                                      config["embedding_dim"]).to(device)
+        print("Device for embeddings : ", next(self.embedding.parameters()))
 
     def forward(self, X):
         printd(f"Lib->Embedding, l{lineno()}, X: ", X.shape, X.type())
+        device_embedding = next(self.embedding.parameters()).device
+        if X.device != device_embedding:
+            X = X.to(device_embedding)
         X = self.embedding(X)
         printd(f"Lib->Embedding, l{lineno()}, X: ", X.shape, X.type())
         return X
@@ -96,15 +116,24 @@ class Routeur(nn.Module):
         )
         self.softmax = nn.Softmax(dim=0)
 
-    def forward(self, X):
+    def forward(self, X: torch.Tensor, filter_blocks: List[int] = []):
         printd(f"Lib->Routeur, l{lineno()}, X: ", X.shape, X.type())
-        X = torch.flatten(X, start_dim=0)
+        if (len(X.shape) == 2):
+            X = torch.flatten(X, start_dim=0)
+        else:
+            X = torch.flatten(X, start_dim=1)
+        #
         printd(f"Lib->Routeur, l{lineno()}, X: ", X.shape, X.type())
         X = self.lin(X)
         printd(f"Lib->Routeur, l{lineno()}, X: ", X.shape, X.type())
         X = self.softmax(X)
         printd(f"Lib->Routeur, l{lineno()}, X: ", X.shape, X.type())
-        idx = torch.argmax(X, 1)
+        if filter_blocks == []:
+            idx = torch.argmax(X, 1)
+        else:
+            mask = X in filter_blocks
+            indices = torch.nonzero(mask)
+            idx = torch.argmax(X[indices], 1)
         printd(f"Lib->Routeur, l{lineno()}, ids: ", idx, type(idx), idx.type())
         return idx
 
@@ -135,11 +164,26 @@ class FeedForward(nn.Module):
 class NextTokenPrediction(nn.Module):
     def __init__(self):
         super().__init__()
-        self.lin = nn.Linear(
-            config["embedding_dim"]
-            * config["context_length"],
-            VOCAB_SIZE
-        )
+        #
+        self.pre_lin = None
+        if "last_embedding_dim" in config:
+            self.pre_lin = nn.Linear(
+                config["embedding_dim"] * config["context_length"],
+                config["last_embedding_dim"] * config["context_length"]
+            )
+            #
+            self.lin = nn.Linear(
+                config["last_embedding_dim"]
+                * config["context_length"],
+                VOCAB_SIZE
+            )
+        else:
+            self.lin = nn.Linear(
+                config["embedding_dim"]
+                * config["context_length"],
+                VOCAB_SIZE
+            )
+            
         self.softmax = nn.Softmax(dim=0)
 
     def get_next_token_index(self, X, k, top_k_value):
@@ -168,10 +212,13 @@ class NextTokenPrediction(nn.Module):
         else:  # Pas de Batch
             X = torch.flatten(X, start_dim=0)
         #
+        if self.pre_lin != None:
+            printd(f"Lib->NextTkPrediction, l{lineno()}, X : ", X.shape, X.type())
+            X = self.pre_lin(X)
         printd(f"Lib->NextTkPrediction, l{lineno()}, X : ", X.shape, X.type())
         X = self.lin(X)
         printd(f"Lib->NextTkPrediction, l{lineno()}, X : ", X.shape, X.type())
-
+        #
         return X
 
     def get_next_token_idx(self, X: Tensor, topk_sorted_index_limit=None):

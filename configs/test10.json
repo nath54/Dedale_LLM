@@ -1,0 +1,87 @@
+{
+    "model_name": "test10",
+    "force_passage": [],
+    "tokenizer": "gpt2_tokenizer",
+    "print_dims": 0,
+
+    "max_loaded_blocks": 5,
+    "nb_blocks_to_remove": 2,
+
+    "context_length": 128,
+    "embedding_dim": 64,
+    "nb_of_blocks": 150,
+
+    "blocks": {
+        "default": {
+            "hidden_dim": 64,
+            "nb_of_attention_heads": 1
+        }
+    },
+
+    "data": {
+        "french0": "/home/nathan/Documents/Datasets/Language/Sentences/fr/sentences_fr_0.txt",
+        "french1": "/home/nathan/Documents/Datasets/Language/Sentences/fr/sentences_fr_1.txt",
+        "french2": "/home/nathan/Documents/Datasets/Language/Sentences/fr/sentences_fr_2.txt",
+        "french3": "/home/nathan/Documents/Datasets/Language/Sentences/fr/sentences_fr_3.txt",
+        "french4": "/home/nathan/Documents/Datasets/Language/Sentences/fr/sentences_fr_4.txt",
+        "french5": "/home/nathan/Documents/Datasets/Language/Sentences/fr/sentences_fr_5.txt",
+        "french6": "/home/nathan/Documents/Datasets/Language/Sentences/fr/sentences_fr_6.txt",
+        "french7": "/home/nathan/Documents/Datasets/Language/Sentences/fr/sentences_fr_7.txt",
+        "french8": "/home/nathan/Documents/Datasets/Language/Sentences/fr/sentences_fr_8.txt",
+        "french9": "/home/nathan/Documents/Datasets/Language/Sentences/fr/sentences_fr_9.txt",
+
+        "en0": "/home/nathan/Documents/Datasets/Language/Sentences/en/sentences_en_0.txt",
+        "en1": "/home/nathan/Documents/Datasets/Language/Sentences/en/sentences_en_1.txt",
+        "en2": "/home/nathan/Documents/Datasets/Language/Sentences/en/sentences_en_2.txt",
+        "en3": "/home/nathan/Documents/Datasets/Language/Sentences/en/sentences_en_3.txt",
+        "en4": "/home/nathan/Documents/Datasets/Language/Sentences/en/sentences_en_4.txt",
+        "en5": "/home/nathan/Documents/Datasets/Language/Sentences/en/sentences_en_5.txt",
+        "en6": "/home/nathan/Documents/Datasets/Language/Sentences/en/sentences_en_6.txt",
+        "en7": "/home/nathan/Documents/Datasets/Language/Sentences/en/sentences_en_7.txt",
+        "en8": "/home/nathan/Documents/Datasets/Language/Sentences/en/sentences_en_8.txt",
+        "en9": "/home/nathan/Documents/Datasets/Language/Sentences/en/sentences_en_9.txt"
+    },
+
+    "training": [{
+            "strategy": "fixed_nb_of_epochs",
+            "nb_epochs": 1000,
+            "forwards_per_epoch": 500,
+            "batch_size": 100,
+            "learning_rate": 0.01,
+            "datasets_used": ["french0", "french1", "french2", "french3", "french4", "french5", "french6", "french7", "french8", "french9"],
+            "force_passage": [0, [1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16], [17, 18, 19, 20], 21, 22],
+            "freeze_blocks": [],
+            "freeze_embeddings": 0,
+            "freeze_next_token_prediction": 0,
+            "freeze_router": 0
+        },
+
+        {
+            "strategy": "fixed_nb_of_epochs",
+            "nb_epochs": 1000,
+            "forwards_per_epoch": 50,
+            "batch_size": 100,
+            "learning_rate": 0.01,
+            "datasets_used": ["en0", "en1", "en2", "en3", "en4", "en5", "en6", "en7", "en8", "en9"],
+            "force_passage": [0, [23, 24, 25, 26], [27, 28, 29, 30], [31, 32, 33, 34], [35, 36, 37, 38], [39, 40, 41, 42], 21, 22],
+            "freeze_blocks": [],
+            "freeze_embeddings": 0,
+            "freeze_next_token_prediction": 0,
+            "freeze_router": 0
+        },
+
+        {
+            "strategy": "fixed_nb_of_epochs",
+            "nb_epochs": 100,
+            "forwards_per_epoch": 5,
+            "batch_size": 1,
+            "learning_rate": 0.01,
+            "datasets_used": ["french0", "french1", "french2", "french3", "french4", "french5", "french6", "french7", "french8", "french9", "en0", "en1", "en2", "en3", "en4", "en5", "en6", "en7", "en8", "en9"],
+            "force_passage": [0, [1, 2, 3, 4, 23, 24, 25, 26], [5, 6, 7, 8, 27, 28, 29, 30], [9, 10, 11, 12, 31, 32, 33, 34], [13, 14, 15, 16, 35, 36, 37, 38], [17, 18, 19, 20, 39, 40, 41, 42], 21, 22],
+            "freeze_blocks": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42],
+            "freeze_embeddings": 1,
+            "freeze_next_token_prediction": 1,
+            "freeze_router": 0
+        }
+    ]
+}

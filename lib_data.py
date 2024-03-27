@@ -57,8 +57,12 @@ class DataContainer:
         #
         self._tokenizer = tokenizer
         self._padding_context_length = padding_context_length
-        self._end_token: torch.Tensor = torch.Tensor(
-            [self._tokenizer.eos_token])[0].to(int)
+        if isinstance(self._tokenizer.eos_token, int):
+            self._end_token: torch.Tensor = torch.Tensor(
+                [self._tokenizer.eos_token])[0].to(int)
+        elif isinstance(self._tokenizer.eos_token, str):
+            tk: int = self._tokenizer.encode(self._tokenizer.eos_token)
+            self._end_token: torch.Tensor = torch.Tensor(tk)[0].to(int)
         #
         if isinstance(paths, str):
             self._mode = DC_MODE_SINGLE

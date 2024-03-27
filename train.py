@@ -85,9 +85,9 @@ def training_simple_epochs(
         lr=training_config["learning_rate"]
     )
     loss_fn = nn.CrossEntropyLoss().to(device)
-
+    
     tb: SummaryWriter = SummaryWriter()
-
+    
     #
     for epoch in range(training_config["nb_epochs"]):
 
@@ -105,21 +105,14 @@ def training_simple_epochs(
 
             X, Y = data_container.get_data(
                 nb_batch=training_config["batch_size"],
-                key=rchoice(training_config["datasets_used"])
+                key = rchoice(training_config["datasets_used"])
             )
             X = X.to(device)
             Y = Y.to(device)
 
-            printd(f"* Before Training: \n"
-                   f"    - X:{X.shape, X.type(), X.device},\n"
-                   f"    - Y:{Y.shape, Y.type(), Y.device}")
-
             optimizer.zero_grad()
 
             output = model(X).to(device)
-
-            # print(f"\n\nOutput : {output}"
-            #       f"\n  - Y : {Y}\n\n")
 
             loss = loss_fn(output, Y)
             loss.backward()
