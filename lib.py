@@ -90,6 +90,12 @@ def print_params(model: nn.Module):
         )
 
 
+# Function for freezing or unfreezing params from learning
+def set_grad_params(module: nn.Module, value: bool):
+    for param in module.parameters():
+        param.requires_grad = value
+
+
 class Embedding(nn.Module):
     def __init__(self):
         super().__init__()

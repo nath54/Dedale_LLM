@@ -6,7 +6,7 @@ import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
-from lib import device, tokenizer, config, printd
+from lib import device, tokenizer, config, printd, set_grad_params
 from lib_data import DataContainer
 
 from random import choice as rchoice
@@ -20,10 +20,6 @@ def debug_show_trainable_params(model: nn.Module):
         print(n, p.shape, p.requires_grad)
 
 
-# Function for freezing or unfreezing params from learning
-def set_grad_params(module: nn.Module, value: bool):
-    for param in module.parameters():
-        param.requires_grad = value
 
 
 # Training function for N epochs on a particular dataset
@@ -65,18 +61,30 @@ def training_simple_epochs(
         else:
             training_config["force_passage"] = []
 
+    #
+    if "preload_blocks" not in training_config:
+        training_config["preload_blocks"] = []
+
+
     # Apply configs on model
+    model.training_config = training_config
+
+    #  - Preloading blocks
+    for idb in training_config["preload_blocks"]:
+        model.load_block(idb)
+    
+    #  - Set grads params
     set_grad_params(
         model.next_token_prediction,
-        True if training_config["freeze_next_token_prediction"] else False
+        True if (training_config["freeze_next_token_prediction"]==1) else False
     )
     set_grad_params(
         model.embedding,
-        True if training_config["freeze_embeddings"] else False
+        True if (training_config["freeze_embeddings"]==1) else False
     )
     set_grad_params(
         model.routeur,
-        True if training_config["freeze_router"] else False
+        True if (training_config["freeze_router"]==1) else False
     )
 
     #
@@ -111,10 +119,21 @@ def training_simple_epochs(
             Y = Y.to(device)
 
             optimizer.zero_grad()
+            model.zero_grad()
 
             output = model(X).to(device)
 
             loss = loss_fn(output, Y)
+            
+            for name, param in model.named_parameters():
+                if not param.requires_grad:
+                    print(f"Parameter {name} does not require grad!")
+                else:
+                    # Check if grad is None (indicating no gradient calculated)
+                    if param.grad is None:
+                        print(f"Parameter {name} has requires_grad=True but no grad!")
+
+            
             loss.backward()
             losses_epoch.append(loss.item())
 

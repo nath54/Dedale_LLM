@@ -1,5 +1,5 @@
 from lib import Embedding, Routeur, NextTokenPrediction, Block
-from lib import config, device
+from lib import config, device, set_grad_params
 from lib import printd, tokenizer, lineno
 
 from typing import Union, List
@@ -48,6 +48,7 @@ class MixtofExp(nn.Module):
         #
         self.model_name = model_name
         #
+        self.training_config: Union[None, dict] = None
         self.is_in_training_mode = False
 
     def set_training_mode(self):
@@ -234,32 +235,41 @@ class MixtofExp(nn.Module):
         #
         if not os.path.exists("weights/"):
             os.mkdir("weights/")
+            
+        #
+        block = Block()
+        
+        #
         if os.path.exists(f"weights/{self.model_name}/block_{block_id}.pt"):
-            block = Block()
+            #
             block.load_state_dict(
                 torch.load(f"weights/{self.model_name}/block_{block_id}.pt")
             )
-            #
-            printd(f"Loading block : {block_id}")
-            #
-            self.register_module(f"block_{block_id}", block)
-            #
-            if self.is_in_training_mode:
-                block.train()
-            else:
-                block.eval()
-            #
-            self.blocks[block_id] = {
-                "model": block,
-                "usage": 0
-            }
+
+        #
+        printd(f"Loading block : {block_id}")
+        #
+        self.register_module(f"block_{block_id}", block)
+
+        #
+        set_grad_params(
+            block,
+            False if block_id in self.training_config["freeze_blocks"]
+                    else True
+        )
+        
+        if self.is_in_training_mode:
+            block.train()
+            block.zero_grad()
         else:
-            block = Block()
-            #
-            self.blocks[block_id] = {
-                "model": block,
-                "usage": 0
-            }
+            block.eval()
+
+        #
+        self.blocks[block_id] = {
+            "model": block,
+            "usage": 0
+        }
+        
 
     def save_block(self, block_id: int) -> None:
         """
