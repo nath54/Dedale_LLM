@@ -4,12 +4,14 @@
     "tokenizer": "gpt2_tokenizer",
     "print_dims": 0,
 
-    "max_loaded_blocks": 20,
+    "max_loaded_blocks": 12,
     "nb_blocks_to_remove": 6,
 
     "context_length": 128,
     "embedding_dim": 64,
     "nb_of_blocks": 8,
+
+    "gradient_checkpoint_enable": 0,
 
     "blocks": {
         "default": {

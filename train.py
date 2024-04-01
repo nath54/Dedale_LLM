@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 import torch.optim as optim
+from torch.utils import checkpoint
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
@@ -72,6 +73,12 @@ def training_simple_epochs(
         model.force_passage = training_config["force_passage"]
     else:
         model.force_passage = config["force_passage"]
+    
+    #
+    # if "gradient_checkpoint_enable" in config and \
+    #     config["gradient_checkpoint_enable"] == 1:
+    #     #
+    #     model.gradient_checkpointing_enable()
 
     #  - Preloading blocks
     for idb in training_config["preload_blocks"]:
@@ -125,7 +132,13 @@ def training_simple_epochs(
             optimizer.zero_grad()
             model.zero_grad()
 
-            output = model(X).to(device)
+            if "gradient_checkpoint_enable" in config and \
+                config["gradient_checkpoint_enable"] == 1:
+                #
+                output = torch.utils.checkpoint.checkpoint(
+                    model.forward, X).to(device)
+            else:
+                output = model(X).to(device)
 
             loss = loss_fn(output, Y)
             

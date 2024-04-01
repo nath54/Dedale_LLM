@@ -65,7 +65,16 @@ class MixtofExp(nn.Module):
         #
         printd(f"Model, l{lineno()}, X : ", X.shape, type(X), X.type())
         X.type(torch.float)
+        #
+        # if "gradient_checkpoint_enable" in config and \
+        #     config["gradient_checkpoint_enable"] == 1:
+        #     #
+        #     X = torch.utils.checkpoint.checkpoint(
+        #                         self.blocks[block_id]["model"].forward, X)
+        # else:
+        #     X = self.blocks[block_id]["model"].forward(X)
         X = self.blocks[block_id]["model"].forward(X)
+        #
         X.type(torch.float)
         return X
 
@@ -108,7 +117,15 @@ class MixtofExp(nn.Module):
         the model and blocks.
         """
         #
+        #
+        # if "gradient_checkpoint_enable" in config and \
+        #     config["gradient_checkpoint_enable"] == 1:
+        #     #
+        #     X = torch.utils.checkpoint.checkpoint(self.embedding, X)
+        # else:
+        #     X = self.embedding(X)
         X = self.embedding(X)
+        #
         printd(f"Model, l{lineno()}, X: ", X.shape, type(X), X.type())
         X.type(torch.float)
         #
@@ -119,10 +136,31 @@ class MixtofExp(nn.Module):
                 if block_id == PASSAGE_STOP:
                     break
                 elif block_id == PASSAGE_CONTINUE_WITH_ROUTEUR:
+                    #
+                    # if "gradient_checkpoint_enable" in config and \
+                    #     config["gradient_checkpoint_enable"] == 1:
+                    #     #
+                    #     torch.utils.checkpoint.checkpoint(
+                    #         self.forward_routeur_passage, X, routeur_passages)
+                    # else:
+                    #     self.forward_routeur_passage(X, routeur_passages)
                     self.forward_routeur_passage(X, routeur_passages)
+                    #
                     break
                 elif isinstance(block_id, list):
-                    self.forward_routeur_passage(X, routeur_passages, block_id)
+                    #
+                    # if "gradient_checkpoint_enable" in config and \
+                    #     config["gradient_checkpoint_enable"] == 1:
+                    #     #
+                    #     torch.utils.checkpoint.checkpoint(
+                    #         self.forward_routeur_passage,
+                    #         X, routeur_passages, block_id)
+                    # else:
+                    #     self.forward_routeur_passage(
+                    #         X, routeur_passages, block_id)
+                    self.forward_routeur_passage(
+                            X, routeur_passages, block_id)
+                    #
                     continue
                 #
                 routeur_passages += 1
@@ -258,7 +296,12 @@ class MixtofExp(nn.Module):
             False if block_id in self.training_config["freeze_blocks"]
                     else True
         )
-        
+        #
+        # if "gradient_checkpoint_enable" in config and \
+        #     config["gradient_checkpoint_enable"] == 1:
+        #     #
+        #     block.gradient_checkpointing_enable()
+
         if self.is_in_training_mode:
             block.train()
             block.zero_grad()
