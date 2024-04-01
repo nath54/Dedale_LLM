@@ -89,6 +89,16 @@ def print_params(model: nn.Module):
             "\u001b[m"
         )
 
+def print_params_grad(model: nn.Module):    
+    for name, param in model.named_parameters():
+        if not param.requires_grad:
+            print(f"Parameter {name} does not require grad!")
+        else:
+            # Check if grad is None (indicating no gradient calculated)
+            if param.grad is None:
+                print(f"Parameter {name} has requires_grad=True but no grad!")
+
+
 
 # Function for freezing or unfreezing params from learning
 def set_grad_params(module: nn.Module, value: bool):
@@ -123,6 +133,7 @@ class Routeur(nn.Module):
         self.softmax = nn.Softmax(dim=0)
 
     def forward(self, X: torch.Tensor, filter_blocks: List[int] = []):
+        # print(f"Routeur selection of blocks, filter_blocks : {filter_blocks}")
         printd(f"Lib->Routeur, l{lineno()}, X: ", X.shape, X.type())
         if (len(X.shape) == 2):
             X = torch.flatten(X, start_dim=0)
@@ -134,11 +145,11 @@ class Routeur(nn.Module):
         printd(f"Lib->Routeur, l{lineno()}, X: ", X.shape, X.type())
         X = self.softmax(X)
         printd(f"Lib->Routeur, l{lineno()}, X: ", X.shape, X.type())
+        #
         if filter_blocks == []:
             idx = torch.argmax(X, 1)
         else:
-            mask = X in filter_blocks
-            indices = torch.nonzero(mask)
+            indices = torch.Tensor(filter_blocks).to(torch.long)
             idx = torch.argmax(X[indices], 1)
         printd(f"Lib->Routeur, l{lineno()}, ids: ", idx, type(idx), idx.type())
         return idx
@@ -391,7 +402,9 @@ class Block(nn.Module):
     def __init__(self, id_block: int = -1):
         super().__init__()
         self.id_block: int = id_block
-        if (self.id_block == -1) or (self.id_block not in config[""].keys()):
+        if (self.id_block == -1) or \
+           (self.id_block not in config["blocks"].keys()):
+            #
             self.hidden_dim = config["blocks"]["default"]["hidden_dim"]
             self.nb_of_attention_heads = \
                 config["blocks"]["default"]["nb_of_attention_heads"]
@@ -413,6 +426,7 @@ class Block(nn.Module):
         self.ln2 = nn.LayerNorm((config["embedding_dim"])).to(device)
 
     def forward(self, X):
+        # print(f"Passing by block {self.id_block}")
         printd(f"Lib->Block, l{lineno()}, X : ", X.shape, X.type())
         y = self.attention(X)
         printd(f"Lib->Block, l{lineno()}, X : ", X.shape, X.type())

@@ -4,12 +4,12 @@
     "tokenizer": "single_characters_tokenizer",
     "print_dims": 0,
 
-    "max_loaded_blocks": 20,
+    "max_loaded_blocks": 16,
     "nb_blocks_to_remove": 7,
 
     "context_length": 32,
     "embedding_dim": 256,
-    "nb_of_blocks": 20,
+    "nb_of_blocks": 10,
 
     "blocks": {
         "default": {
@@ -46,7 +46,7 @@
             "batch_size": 10,
             "learning_rate": 0.01,
             "datasets_used": ["decroitre"],
-            "force_passage": [6, 7, 8, 9, 10, 11],
+            "force_passage": [0, 6, 7, 8, 5],
 
             "freeze_blocks": [],
             "freeze_embeddings": 1,

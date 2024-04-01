@@ -7,6 +7,7 @@ from typing import Union, List
 import torch
 import torch.nn as nn
 import os
+import gc
 
 PASSAGE_STOP = -1
 PASSAGE_CONTINUE_WITH_ROUTEUR = -2
@@ -122,7 +123,7 @@ class MixtofExp(nn.Module):
                     break
                 elif isinstance(block_id, list):
                     self.forward_routeur_passage(X, routeur_passages, block_id)
-                    break
+                    continue
                 #
                 routeur_passages += 1
                 #
@@ -237,7 +238,7 @@ class MixtofExp(nn.Module):
             os.mkdir("weights/")
             
         #
-        block = Block()
+        block = Block(block_id)
         
         #
         if os.path.exists(f"weights/{self.model_name}/block_{block_id}.pt"):
@@ -303,3 +304,5 @@ class MixtofExp(nn.Module):
         #
         self.save_block(block_id)
         del (self.blocks[block_id])
+        # gc.collect()
+        torch.cuda.empty_cache()

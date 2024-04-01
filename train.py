@@ -68,6 +68,10 @@ def training_simple_epochs(
 
     # Apply configs on model
     model.training_config = training_config
+    if training_config["force_passage"] != []:
+        model.force_passage = training_config["force_passage"]
+    else:
+        model.force_passage = config["force_passage"]
 
     #  - Preloading blocks
     for idb in training_config["preload_blocks"]:
@@ -124,15 +128,6 @@ def training_simple_epochs(
             output = model(X).to(device)
 
             loss = loss_fn(output, Y)
-            
-            for name, param in model.named_parameters():
-                if not param.requires_grad:
-                    print(f"Parameter {name} does not require grad!")
-                else:
-                    # Check if grad is None (indicating no gradient calculated)
-                    if param.grad is None:
-                        print(f"Parameter {name} has requires_grad=True but no grad!")
-
             
             loss.backward()
             losses_epoch.append(loss.item())
