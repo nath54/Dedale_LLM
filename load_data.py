@@ -1,7 +1,10 @@
 import pandas as pd
 import json
+import os
 
-BASE_FILE_PART = "/home/nathan/Documents/"
+HOME = os.environ["HOME"]
+
+BASE_FILE_PART = f"{HOME}/Documents/"
 file_path = BASE_FILE_PART \
                 + "Datasets/Language/Wikipedia/parts/wikipedia_part.000.jsonl"
 
